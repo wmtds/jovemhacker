@@ -5,7 +5,10 @@ TAMANHO_TELA = 640, 480
 TAMANHO = 64
 COR_NAVE = (0, 128, 255)
 VELOCIDADE = 5
-MAX_INIMIGOS = 10
+MAX_TIROS = 5
+WEAPON = 10
+LIFE = 3
+boosts = pygame.sprite.Group()
 
 def init():
     global TELA
@@ -22,14 +25,15 @@ class Nave(pygame.sprite.Sprite):
         self.cor = cor
         self.tx = tx; self.ty = ty
         self.velocidade = 10
-        
-        self.imagem = imagem
-        self.carregar()
+            
+        self.carregar(imagem)
      
-    def carregar(self):
-        if self.imagem is None:
+    def carregar(self, imagem):
+        if not imagem:
+            self.imagem = None
             return
-        self.imagem = pygame.image.load("imagens/" + self.imagem)
+           
+        self.imagem = pygame.image.load("imagens/" + imagem)
      
     def apaga(self):
     	return 
@@ -40,7 +44,7 @@ class Nave(pygame.sprite.Sprite):
         super(Nave, self).kill()
         
     def desenha(self):
-        self.rect = pygame.Rect ( (self.x, self.y, self.tx, self.ty) )
+        self.rect = pygame.Rect ( (self.x, self.y, self.tx,self.ty) )
         self.apaga()
         if not self.imagem:
             pygame.draw.rect(TELA, self.cor, self.rect)
@@ -49,8 +53,24 @@ class Nave(pygame.sprite.Sprite):
         self.ox = self.x
         self.oy = self.y
         
-class Tiro(Nave):
+class Boost(Nave):
     
+    def __init__(self, x, y, imagem="bonusarma.png"):
+        cor = (200, 0, 200)
+        super(Boost, self).__init__(x, y, cor, TAMANHO, TAMANHO, imagem)
+        self.velocidade = VELOCIDADE
+        
+    def atualiza(self, nave):
+        global WEAPON
+        self.y += self.velocidade
+        self.desenha()
+        
+        if self.rect.colliderect(nave.rect):
+            self.kill()
+            WEAPON += 5
+        
+class Tiro(Nave):
+    global boost
     def atualiza(self, inimigos):
         self.y -= self.velocidade
         self.desenha()
@@ -58,30 +78,30 @@ class Tiro(Nave):
             self.kill()
         for inimigo in inimigos:
             if self.rect.colliderect(inimigo.rect):
-                if inimigo.boss and inimigo.BOSS_HEALTH > 1:
-                    inimigo.BOSS_HEALTH -= 1
-                else:
-                    global MAX_INIMIGOS
-                    MAX_INIMIGOS -= 1
+                self.kill()
+                inimigo.health -= WEAPON
+                if inimigo.health < 1:
                     inimigo.kill()
-
+                    if inimigo.boss:
+                        boost = Boost(inimigo.x, inimigo.y)
+                        boosts.add(boost)
+                        
+               
+               
 imagem_fundo = pygame.image.load ("imagens/fundo.png")                
 def fundo (tela):
    tela.blit(imagem_fundo, (0,0))
     
 class Inimigo(Nave):
     
-    BOSS_HEALTH = 140
+    health = 30
     boss = False
         
-    def __init__(self, x, y, boss, imagem="spaceinvaders4.png"):
+    def __init__(self, x, y, imagem="spaceinvaders4.png"):
         cor = (200, 0,200)
-        if boss:
-            super(Inimigo, self).__init__(x, y, cor, TAMANHO, TAMANHO, "boss_0_0.png")
-        else:
-            super(Inimigo, self).__init__(x, y, cor, TAMANHO, TAMANHO, imagem)
+        super(Inimigo, self).__init__(x, y, cor, TAMANHO, TAMANHO, imagem)
         self.velocidade = VELOCIDADE
-        self.boss = boss
+        
         
     def atualiza(self):
         self.x += self.velocidade
@@ -92,10 +112,17 @@ class Inimigo(Nave):
                 print("Voce morreu")
                 raise Exception("Voce morreu")
         self.desenha()
-    
-MAX_TIROS = 5
+
+
+class Boss(Inimigo):
+    health = 140
+    boss = True
+    def __init__(self, x, y):
+        cor = (200, 0, 200)
+        super(Boss, self).__init__(x, y, "boss_0_0.png")
+   
+
 def principal():
-    inimigo = Inimigo(0, 0, True)
     x = TAMANHO_TELA[0] // 2
     y = TAMANHO_TELA[1] - TAMANHO
     nave = Nave(x, y, COR_NAVE, imagem="nave.png")
@@ -103,12 +130,34 @@ def principal():
     tiros = pygame.sprite.Group()
     velocidade_inimigo = 5
     inimigos = pygame.sprite.Group()
-    inimigos.add(inimigo)
-    contador = 0
+    contador = 31
+    onda = 0
+     
+    criar_inimigos = {"base": 2, "criados": 0, "forca": 30}
+    criando_inimigos = True
+
     while True:
-        if contador > 30 and len(inimigos) < MAX_INIMIGOS:
-            inimigos.add(Inimigo(0, 0, False))
+        if contador > 30 and criando_inimigos:
+   
+            inimigo = Inimigo(0,0)
+            inimigo.health = criar_inimigos["forca"]
+            inimigos.add(inimigo)
+            criar_inimigos["criados"] += 1
+            if criar_inimigos["criados"] >= criar_inimigos["base"]:
+                criando_inimigos = False
             contador = 0
+            
+        if not inimigos:
+            onda += 1
+            contador = 31
+            if onda % 2:
+            
+                inimigos.add(Boss(0, 0))
+            else:
+                criar_inimigos["base"] += 5
+                criar_inimigos["forca"] += 10
+                criar_inimigos["criados"] = 0
+                criando_inimigos = True
             
         contador += 1
         pygame.event.pump()
@@ -127,7 +176,10 @@ def principal():
         fundo(TELA)
 
         nave.desenha()
-
+        
+        for b in boosts:
+            b.atualiza(nave)
+        
         for inimigo in inimigos:
             inimigo.atualiza()
 
