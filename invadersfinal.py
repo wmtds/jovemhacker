@@ -1,18 +1,29 @@
 import pygame
 from pygame.locals import *
+import random
 
 TAMANHO_TELA = 640, 480
 TAMANHO = 64
 COR_NAVE = (0, 128, 255)
 VELOCIDADE = 5
 MAX_TIROS = 5
-WEAPON = 10
-LIFE = 3
+WEAPON = 500000
+
+
 boosts = pygame.sprite.Group()
 
 def init():
-    global TELA
+    global TELA, FONTE
+    pygame.init()
+    FONTE = pygame.font.Font("sans.ttf", 48)
+    FONTE.set_bold(True)
     TELA = pygame.display.set_mode(TAMANHO_TELA)
+    
+def atualiza_pontos():
+    pontos = nave.pontos
+    texto = "{:05d}".format(pontos)
+    img = FONTE.render(texto, True, (255,255,255))
+    TELA.blit(img, (0, TAMANHO_TELA[1] - img.get_height()))
 
 class Nave(pygame.sprite.Sprite):
     
@@ -27,6 +38,7 @@ class Nave(pygame.sprite.Sprite):
         self.velocidade = 10
             
         self.carregar(imagem)
+        self.pontos = 0
      
     def carregar(self, imagem):
         if not imagem:
@@ -52,7 +64,10 @@ class Nave(pygame.sprite.Sprite):
             TELA.blit(self.imagem, self.rect)
         self.ox = self.x
         self.oy = self.y
+        if self.__class__ is Nave:
+            atualiza_pontos()
         
+            
 class Boost(Nave):
     
     def __init__(self, x, y, imagem="bonusarma.png"):
@@ -68,9 +83,9 @@ class Boost(Nave):
         if self.rect.colliderect(nave.rect):
             self.kill()
             WEAPON += 5
+            
         
-class Tiro(Nave):
-    global boost
+class Tiro(Nave):   
     def atualiza(self, inimigos):
         self.y -= self.velocidade
         self.desenha()
@@ -82,26 +97,27 @@ class Tiro(Nave):
                 inimigo.health -= WEAPON
                 if inimigo.health < 1:
                     inimigo.kill()
+                    nave.pontos += inimigo.valor
                     if inimigo.boss:
                         boost = Boost(inimigo.x, inimigo.y)
                         boosts.add(boost)
-                        
-               
+                                       
                
 imagem_fundo = pygame.image.load ("imagens/fundo.png")                
 def fundo (tela):
    tela.blit(imagem_fundo, (0,0))
-    
+
+
 class Inimigo(Nave):
-    
     health = 30
     boss = False
-        
+    valor = 1
+    
     def __init__(self, x, y, imagem="spaceinvaders4.png"):
         cor = (200, 0,200)
         super(Inimigo, self).__init__(x, y, cor, TAMANHO, TAMANHO, imagem)
         self.velocidade = VELOCIDADE
-        
+
         
     def atualiza(self):
         self.x += self.velocidade
@@ -117,12 +133,14 @@ class Inimigo(Nave):
 class Boss(Inimigo):
     health = 140
     boss = True
+    valor = 10
     def __init__(self, x, y):
         cor = (200, 0, 200)
         super(Boss, self).__init__(x, y, "boss_0_0.png")
-   
 
+    
 def principal():
+    global nave
     x = TAMANHO_TELA[0] // 2
     y = TAMANHO_TELA[1] - TAMANHO
     nave = Nave(x, y, COR_NAVE, imagem="nave.png")
@@ -194,4 +212,3 @@ try:
     principal()
 finally:
     pygame.quit()
-    
