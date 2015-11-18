@@ -6,8 +6,8 @@ TAMANHO_TELA = 640, 480
 TAMANHO = 64
 COR_NAVE = (0, 128, 255)
 VELOCIDADE = 5
-MAX_TIROS = 5
-WEAPON = 500000
+MAX_TIROS = 7
+WEAPON = 5
 
 
 boosts = pygame.sprite.Group()
@@ -22,7 +22,7 @@ def init():
 def atualiza_pontos():
     pontos = nave.pontos
     texto = "{:05d}".format(pontos)
-    img = FONTE.render(texto, True, (255,255,255))
+    img = FONTE.render(texto, True, (0,0,255))
     TELA.blit(img, (0, TAMANHO_TELA[1] - img.get_height()))
 
 class Nave(pygame.sprite.Sprite):
