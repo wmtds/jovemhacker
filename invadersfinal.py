@@ -1,3 +1,6 @@
+# coding: utf-8
+
+
 import pygame
 from pygame.locals import *
 import random
@@ -8,19 +11,24 @@ COR_NAVE = (0, 128, 255)
 VELOCIDADE = 5
 MAX_TIROS = 7
 WEAPON = 5
+HIGH_SCORE = 0
+PONTOS = 0
 
+class GameOver(Exception):
+    pass
 
 boosts = pygame.sprite.Group()
 
 def init():
-    global TELA, FONTE
+    global TELA, FONTE, FONTE_GRANDE
     pygame.init()
     FONTE = pygame.font.Font("sans.ttf", 48)
+    FONTE_GRANDE = pygame.font.Font("sans.ttf", 64)
     FONTE.set_bold(True)
     TELA = pygame.display.set_mode(TAMANHO_TELA)
     
 def atualiza_pontos():
-    pontos = nave.pontos
+    pontos = PONTOS
     texto = "{:05d}".format(pontos)
     img = FONTE.render(texto, True, (0,0,255))
     TELA.blit(img, (0, TAMANHO_TELA[1] - img.get_height()))
@@ -28,6 +36,7 @@ def atualiza_pontos():
 class Nave(pygame.sprite.Sprite):
     
     def __init__(self, x, y, cor, tx=TAMANHO, ty=TAMANHO, imagem=None):
+ 
         super(Nave, self).__init__()
         self.x = x
         self.y = y
@@ -38,7 +47,7 @@ class Nave(pygame.sprite.Sprite):
         self.velocidade = 10
             
         self.carregar(imagem)
-        self.pontos = 0
+        
      
     def carregar(self, imagem):
         if not imagem:
@@ -66,8 +75,43 @@ class Nave(pygame.sprite.Sprite):
         self.oy = self.y
         if self.__class__ is Nave:
             atualiza_pontos()
-        
-            
+
+def mensagem(msg):
+    TELA.fill((0,0,0))
+    linhas = msg.split("\n")
+    partes = []
+    passo_y = TELA.get_height() // (len(linhas) + 1)
+    for i, linha in enumerate(linhas):
+        if i == 0:
+            fonte  = FONTE_GRANDE
+        else:
+            fonte = FONTE
+
+        parte = fonte.render(linha, True, (255,255, 255))
+        pos_y = (i + 1) * passo_y
+        pos_x = (TELA.get_width() - parte.get_width()) // 2
+        TELA.blit(parte, (pos_x, pos_y))
+    pygame.display.flip()
+    for i in range(10):
+        pygame.event.pump()
+        pygame.time.delay(100)
+    while True:
+        pygame.event.pump()
+        keys = pygame.key.get_pressed()
+        if keys[K_SPACE]:
+            return True
+        elif keys[K_ESCAPE]:
+            return False
+        pygame.time.delay(100)
+    
+def inicio ():
+    return mensagem(u"start the game\n <press space> \n high score {}".format(HIGH_SCORE))
+
+def fim (msg):
+    if not isinstance(msg, unicode):
+        msg = msg.decode("utf-8")
+    return mensagem(u"{}\n Start new game\n <press space> \n high score {}".format(msg, HIGH_SCORE))
+
 class Boost(Nave):
     
     def __init__(self, x, y, imagem="bonusarma.png"):
@@ -87,6 +131,7 @@ class Boost(Nave):
         
 class Tiro(Nave):   
     def atualiza(self, inimigos):
+        global PONTOS
         self.y -= self.velocidade
         self.desenha()
         if self.y < 0:
@@ -97,7 +142,7 @@ class Tiro(Nave):
                 inimigo.health -= WEAPON
                 if inimigo.health < 1:
                     inimigo.kill()
-                    nave.pontos += inimigo.valor
+                    PONTOS += inimigo.valor
                     if inimigo.boss:
                         boost = Boost(inimigo.x, inimigo.y)
                         boosts.add(boost)
@@ -125,9 +170,9 @@ class Inimigo(Nave):
             self.x = 0
             self.y += TAMANHO + 10
             if self.y >= TAMANHO_TELA[1]:
-                print("Voce morreu")
-                raise Exception("Voce morreu")
+                raise GameOver("Game Over")
         self.desenha()
+                
 
 
 class Boss(Inimigo):
@@ -185,7 +230,7 @@ def principal():
         elif teclas[K_RIGHT]:
             nave.x += velocidade
         if teclas[K_ESCAPE]:
-            break
+            raise GameOver("Você saiu do jogo")
         if teclas[K_SPACE] and len(tiros) <= MAX_TIROS:
             tiro = Tiro(nave.x + TAMANHO//2, TAMANHO_TELA[1] - TAMANHO,
                         (255, 255,255), 4, 4)
@@ -207,8 +252,21 @@ def principal():
         pygame.display.flip()
         pygame.time.delay(30)
 
-try:
+def controle():
+    global HIGH_SCORE, PONTOS
     init()
-    principal()
+    while True:
+        try:
+            PONTOS = 0
+            inicio()
+            principal()
+        except GameOver as exc:
+            if PONTOS > HIGH_SCORE:
+                HIGH_SCORE = PONTOS
+            if not fim(exc.message):
+                break
+
+try:
+    controle()
 finally:
     pygame.quit()
